@@ -6,7 +6,7 @@
 #include <iostream>
 #include <math.h>
 
-#include <mysofa.h>
+#include "../../Desktop/libraries/libmysofa/src/hrtf/mysofa.h"
 
 class DirectivityHandler
 {

@@ -13,7 +13,7 @@
 
 #include <Eigen/Eigen>
 
-#define SOUND_SPEED 343 // speed of sound in m.s-1
+#define SOUND_SPEED 343 // speed of sound in m.s-1 ///////////found it
 #define NUM_OCTAVE_BANDS 10 // number of octave bands used in filter bank for room absorption
 #define AMBI_ORDER 2 // Ambisonic order
 #define N_AMBI_CH 9 // Associated number of Ambisonic channels [pow(AMBI_ORDER+1,2)]

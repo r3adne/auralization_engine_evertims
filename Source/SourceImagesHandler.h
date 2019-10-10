@@ -122,7 +122,7 @@ float getMaxDelayFuture()
 }
     
 // main: loop over sources images, apply delay + room coloration + spatialization
-void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuffer )
+void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuffer ) ///////////////////////////////////////////////////
 {
     
     // update crossfade mechanism
@@ -135,7 +135,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
     for( int j = 0; j < numSourceImages; j++ )
     {
         
-        //==========================================================================
+        //========================================================================== SEE - modifying speed of sound by medium?????? -ZT
         // GET DELAYED BUFFER
         float delayInFractionalSamples = 0.0;
         if( !crossfadeOver ) // Add old and new tapped delayed buffers with gain crossfade
@@ -171,7 +171,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
             }
         }
         
-        //==========================================================================
+        //========================================================================== AIR ABSORPTION -- possibly implement this within frequency dependent gain section? Possibly implement varying medium? see: Propogation of Sound in the Ocean. -ZT
         // APPLY GAIN BASED ON SOURCE IMAGE PATH LENGTH
         float gainDelayLine = 0.0f;
         if( !crossfadeOver )
@@ -186,7 +186,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
                 gainDelayLine = 1.0/current->pathLengths[j];
             }
         }
-        workingBuffer.applyGain( fmin( 1.0, fmax( 0.0, gainDelayLine )) );
+        workingBuffer.applyGain( fmin( 1.0, fmax( 0.0, gainDelayLine )) ); // bypass minmax ////////////////////////////// POSSIBLE INSTABILITY
         
         //==========================================================================
         // APPLY FREQUENCY SPECIFIC GAINS (ABSORPTION, DIRECTIVITY)
@@ -197,7 +197,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
         // apply absorption gains and recompose
         workingBuffer.clear();
         float absorptionCoef, dirGain;
-        for( int k = 0; k < bandBuffer.getNumChannels(); k++ )
+        for( int k = 0; k < bandBuffer.getNumChannels(); k++) //////////////// BANDS ////////////////
         {
             absorptionCoef = 0.f;
             dirGain = 0.f;
@@ -225,7 +225,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
                 }
             }
             
-            // bound gains
+            // bound gains ------------------ Add instability //////////////////////////////////////////////////////////////////////////
             absorptionCoef = fmin( 1.0, fmax( 0.0,  1.f - absorptionCoef ));
             dirGain = fmin( 1.0, fmax( 0.0, dirGain ));
             

@@ -127,7 +127,7 @@ ambi2binContainer()
         { &srcDirectivityLabel, "Source directivity:" },
         { &inputLabel, "Inputs" },
         { &parameterLabel, "Parameters" },
-        { &logLabel, "Logs" },
+        { &logLabel, "Logs - build 0.0" },
         { &directPathLabel, "Direct path" },
         { &earlyLabel, "Early reflections" },
         { &crossfadeLabel, "Crossfade factor" },
@@ -260,6 +260,7 @@ void MainContentComponent::getNextAudioBlock (const AudioSourceChannelInfo& buff
 }
 
 // Audio Processing: split from getNextAudioBlock to use it for recording IR
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MainContentComponent::processAmbisonicBuffer( AudioBuffer<float> *const audioBufferToFill )
 {
     workingBuffer.copyFrom(0, 0, audioBufferToFill->getWritePointer(0), workingBuffer.getNumSamples());
@@ -551,7 +552,8 @@ void MainContentComponent::resized()
     srcDirectivityComboBox.setBounds(saveIrButton.getX() - 110, 280, 110, 20);
     
     // log box
-    logLabel.setBounds(30, 309, 40, 20);
+//    logTextBox.setBounds(<#int x#>, <#int y#>, <#int width#>, <#int height#>)
+    logLabel.setBounds(30, 309, 120, 20);
     logTextBox.setBounds (8, 320, getWidth() - 16, getHeight() - 336);
     enableLog.setBounds(getWidth() - 120, 320, 100, 30);
     enableRecord.setBounds(getWidth() - 200, 350, 180, 30);
