@@ -33,6 +33,7 @@
         <FILE id="N0XpeZ" name="OouraFFT.cpp" compile="1" resource="0" file="Source/FIRFilter/OouraFFT.cpp"/>
         <FILE id="mnnlnj" name="OouraFFT.h" compile="0" resource="0" file="Source/FIRFilter/OouraFFT.h"/>
       </GROUP>
+      <FILE id="CJculv" name="AirAbsorption.h" compile="0" resource="0" file="Source/AirAbsorption.h"/>
       <FILE id="sSNWxe" name="Ambi2binIRContainer.h" compile="0" resource="0"
             file="Source/Ambi2binIRContainer.h"/>
       <FILE id="VFZ1PG" name="AudioIOComponent.h" compile="0" resource="0"

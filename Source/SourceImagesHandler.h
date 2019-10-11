@@ -7,6 +7,7 @@
 #include "FilterBank.h"
 #include "ReverbTail.h"
 #include "DirectivityHandler.h"
+#include "AirAbsorption.h"
 
 class SourceImagesHandler
 {

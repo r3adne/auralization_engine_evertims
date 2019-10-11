@@ -93,7 +93,12 @@ private:
     Label crossfadeLabel;
     LedComponent clippingLed;
     Label clippingLedLabel;
-    
+
+    //==========================================================================
+    // New GUI ELEMENTS -- will be merged above when these all work.
+
+
+
     std::unordered_map<Button*, std::string> buttonMap;
     std::unordered_map<ComboBox*, Array< std::string > > comboBoxMap;
     std::unordered_map<Slider*, Array< double > > sliderMap;

@@ -224,3 +224,4 @@ inline void saveStringToDesktop( const String & fileName, const String & data)
     // write to file
     file.replaceWithText ( data );
 }
+
