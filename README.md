@@ -8,9 +8,9 @@ Pre-compiled application may already exist for your architecture, check the inst
 is a forked version of EVERTims/auralization-engine-evertims. I am adding some extra functionality:
 
 1. frequency-dependant gain in air absorption calculation
-* warning user when gain is greater than 1.f or less than 0.f but not prohibiting it (This will lead to instability but it could be fun for cases when users want extreme (and intentionally inaccurate) effects)
-* the ability to name saved IR files and specify their path
-* creating a host VST plugin
+1. warning user when gain is greater than 1.f or less than 0.f but not prohibiting it (This will lead to instability but it could be fun for cases when users want extreme (and intentionally inaccurate) effects)
+1. the ability to name saved IR files and specify their path
+1. creating a host VST plugin
 
 This work is being done for the partial fulfillment of the EP-491 curriculum at Berklee College of Music. 
 
