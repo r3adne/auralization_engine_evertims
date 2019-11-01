@@ -181,7 +181,7 @@ ambi2binContainer()
         { &srcDirectivityLabel, "Source directivity:" },
         { &inputLabel, "Inputs" },
         { &parameterLabel, "Parameters" },
-        { &logLabel, "Logs - build 0.0" },
+        { &logLabel, "Logs - build 0.2" },
         { &directPathLabel, "Direct path" },
         { &earlyLabel, "Early reflections" },
         { &crossfadeLabel, "Crossfade factor" },
