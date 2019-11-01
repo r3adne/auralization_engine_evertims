@@ -2,10 +2,12 @@
 #include "MainComponent.h"
 #include "Utils.h"
 
+#define offset 75
 
 MainContentComponent::MainContentComponent():
 oscHandler(),
 clippingLed( *this ),
+//overLed( *this ),
 audioIOComponent(),
 audioRecorder(),
 delayLine(),
@@ -13,7 +15,7 @@ sourceImagesHandler(),
 ambi2binContainer()
 {
     // set window dimensions
-    setSize (650, 700);
+    setSize (650, 900);
     
     // specify the required number of input and output channels
     setAudioChannels (2, 2);
@@ -31,11 +33,24 @@ ambi2binContainer()
     addAndMakeVisible(audioIOComponent);
     addAndMakeVisible(clippingLed);
     clippingLed.setAlwaysOnTop(true);
+//    addAndMakeVisible(overLed);
+//    overLed.setAlwaysOnTop(true);
+
+
+
+
+    // new GUI elements
+    addAndMakeVisible(pressureSlider); 
+    addAndMakeVisible(tempSlider);
+    addAndMakeVisible(humiditySlider);
+    addAndMakeVisible(medSlider);
+
+
     
     // setup logo image
-    logoImage = ImageCache::getFromMemory(BinaryData::evertims_logo_512_png, BinaryData::evertims_logo_512_pngSize);
-    logoImage = logoImage.rescaled(logoImage.getWidth()/2, logoImage.getHeight()/2);
-    
+//    logoImage = ImageCache::getFromMemory(BinaryData::evertims_logo_512_png, BinaryData::evertims_logo_512_pngSize);
+//    logoImage = logoImage.rescaled(logoImage.getWidth()/2, logoImage.getHeight()/2);
+
     // init log text box
     addAndMakeVisible (logTextBox);
     logTextBox.setMultiLine (true);
@@ -53,7 +68,8 @@ ambi2binContainer()
     buttonMap.insert({
         { &saveIrButton, "Save RIRs to Desktop" },
         { &saveOscButton, "Save OSC state to Desktop" },
-        { &clearSourceImageButton, "Clear" }
+        { &clearSourceImageButton, "Clear" },
+        { &saveToHost, "Save to Host"}
     });
     for (auto& pair : buttonMap)
     {
@@ -67,6 +83,8 @@ ambi2binContainer()
     saveIrButton.setColour (TextButton::buttonColourId, Colours::transparentBlack);
     saveOscButton.setColour (TextButton::buttonColourId, Colour(PixelARGB(160,0,0,0)));
     clearSourceImageButton.setColour (TextButton::buttonColourId, Colours::indianred);
+    saveToHost.setColour(TextButton::buttonColourId, Colours::transparentBlack);
+
     
     // init combo boxes
     comboBoxMap.insert({
@@ -94,9 +112,18 @@ ambi2binContainer()
     sliderMap.insert({
         { &gainReverbTailSlider, { 0.0, 2.0, 1.0} }, // min, max, value
         { &gainDirectPathSlider, { 0.0, 2.0, 1.0} },
-        { &gainEarlySlider, { 0.0, 2.0, 1.0} },
-        { &crossfadeStepSlider, { 0.001, 0.2, 0.1} }
+        { &gainEarlySlider, { 0.0, 4.0, 1.0} },
+        { &crossfadeStepSlider, { 0.001, 0.2, 0.1} },
+        { &medSlider, {0, 1, 0} },
+        { &tempSlider, {0.0f, 1.0f, 0.1f} },
+        { &pressureSlider, {0.0f, 1.0f, 0.1f} },
+        { &humiditySlider, {0.0f, 1.0f, 0.1f} }
     });
+    gainReverbTailSlider.setRange(0.0, 2.0, 0.01);
+    gainDirectPathSlider.setRange(0.0, 2.0, 0.01);
+    gainEarlySlider.setRange(0.0, 2.0, 0.01);
+    crossfadeStepSlider.setRange(0.001, 0.2, 0.001);
+
     for (auto& pair : sliderMap)
     {
         auto& obj = pair.first;
@@ -120,7 +147,34 @@ ambi2binContainer()
     crossfadeStepSlider.setTextBoxStyle(Slider::TextBoxRight, true, 50, 20);
     crossfadeStepSlider.setRotaryParameters(10 / 8.f * 3.1416, 22 / 8.f * 3.1416, true);
     crossfadeStepSlider.setSkewFactor(0.7);
-    
+
+    // make sliders horizontal bar type
+    pressureSlider.setSliderStyle(Slider::LinearHorizontal);
+    humiditySlider.setSliderStyle(Slider::LinearHorizontal);
+    tempSlider.setSliderStyle(Slider::LinearHorizontal);
+    medSlider.setSliderStyle(Slider::LinearHorizontal);
+
+    pressureSlider.setRange(-10.0f, 10.0f, 0.01);
+    pressureSlider.setTextBoxStyle(Slider::NoTextBox, false, 90, 0);
+    pressureSlider.setPopupDisplayEnabled(true, false, this);
+    pressureSlider.setTextValueSuffix(" atm");
+
+    humiditySlider.setRange(0.0f, 200.0f, 0.1);
+    humiditySlider.setTextBoxStyle(Slider::NoTextBox, false, 90, 0);
+    humiditySlider.setPopupDisplayEnabled(true, false, this);
+    humiditySlider.setTextValueSuffix(" %");
+    humiditySlider.setValue(50.0f);
+
+    tempSlider.setRange(-273.15f, 2731500.0f, 0.1);
+    tempSlider.setSkewFactorFromMidPoint(20.0f);
+    tempSlider.setTextBoxStyle(Slider::NoTextBox, false, 90, 0);
+    tempSlider.setPopupDisplayEnabled(true, false, this);
+    tempSlider.setTextValueSuffix(" C");
+    tempSlider.setValue(20.0f);
+
+    medSlider.setRange(0, 1, 1);
+    medSlider.setValue(0);
+
     // init labels
     labelMap.insert({
         { &numFrequencyBandsLabel, "Num absorb freq bands:" },
@@ -131,7 +185,12 @@ ambi2binContainer()
         { &directPathLabel, "Direct path" },
         { &earlyLabel, "Early reflections" },
         { &crossfadeLabel, "Crossfade factor" },
-        { &clippingLedLabel, "clip" }
+        { &clippingLedLabel, "clip" },
+        // new labels
+        { &medSliderLabel, "medium" },
+        { &tempSliderLabel, "Temperature" },
+        { &pressureSliderLabel, "Pressure" },
+        { &humiditySliderLabel, "% Humidity" }
     });
     for (auto& pair : labelMap)
     {
@@ -188,6 +247,11 @@ void MainContentComponent::prepareToPlay (int samplesPerBlockExpected, double sa
     // This function will be called when the audio device is started, or when
     // its settings (i.e. sample rate, block size, etc) are changed.
     // Called on the audio thread, not the GUI thread.
+    AirAbsorber.setNumBands(numFreqBands);
+    AirAbsorber.setHumidity(humiditySlider.getValue());
+    AirAbsorber.setPressure(pressureSlider.getValue());
+    AirAbsorber.setMedium(0);
+    AirAbsorber.setTemperature(tempSlider.getValue()); 
     
     // audio file reader & adc input
     audioIOComponent.prepareToPlay (samplesPerBlockExpected, sampleRate);
@@ -240,8 +304,8 @@ void MainContentComponent::getNextAudioBlock (const AudioSourceChannelInfo& buff
     if( !isRecordingIr )
     {
         processAmbisonicBuffer( bufferToFill.buffer );
-        if( audioRecorder.isRecording() ){ recordAmbisonicBuffer(); }
-        fillNextAudioBlock( bufferToFill.buffer );
+        if( audioRecorder.isRecording() ){recordAmbisonicBuffer(); }
+        fillNextAudioBlock( bufferToFill.buffer);
     }
     // simply clear output buffer
     else
@@ -371,7 +435,7 @@ void MainContentComponent::recordAmbisonicBuffer()
 }
 
 // record current Room impulse Response to disk
-void MainContentComponent::recordIr()
+void MainContentComponent::recordIr(string path)
 {
     // estimate output buffer size (based on max delay time)
     auto maxDelaySourceImages = getMaxValue( oscHandler.getSourceImageDelays() );
@@ -403,9 +467,10 @@ void MainContentComponent::recordIr()
     // pass impulse input into processing loop until IR faded below threshold
     float rms = 1.0f;
     int bufferId = 0;
+    float irRmsThreshold = 0.00001f;
     // record until rms below threshold or reached max delay. minDelay used here to make sure recording doesn't stop on first buffers for large
     // source-listener distances, where RMS is zero for the first few buffers until LOS image source reaches listener.
-    while( ( rms >= 0.00001f || bufferId*localSamplesPerBlockExpected < minDelayInSamp ) && bufferId*localSamplesPerBlockExpected < maxDelayInSamp )
+    while( ( rms >= irRmsThreshold || bufferId*localSamplesPerBlockExpected < minDelayInSamp ) && bufferId*localSamplesPerBlockExpected < maxDelayInSamp )
     {
         // clear impulse after first round
         if( bufferId >= 1 ){ recordingBufferInput.clear(); }
@@ -505,7 +570,9 @@ void MainContentComponent::paint (Graphics& g)
     // parameters box
     // g.setOpacity(1.0f);
     g.setColour(Colours::white);
-    g.drawRect(10.f, 155.f, getWidth()-20.f, 150.f);
+    g.drawRect(10.f, 155.f, getWidth()-20.f, 330.f);
+
+    g.drawLine(30, 240 + offset, getWidth() - 30, 240 + offset);
     
     // logo image
     g.drawImageAt(logoImage, (int)( (getWidth()/2) - (logoImage.getWidth()/2) ), 380);
@@ -513,7 +580,7 @@ void MainContentComponent::paint (Graphics& g)
     // signature
     g.setColour(Colours::white);
     g.setFont(11.f);
-    g.drawFittedText("designed by D. Poirier-Quinot, M. Noisternig, and B. F.G. Katz (2017)", getWidth() - 335, getHeight()-15, 325, 15, Justification::right, 2);
+    g.drawFittedText("designed by D. Poirier-Quinot, M. Noisternig, and B. F.G. Katz (2017), this build modified by Z. L. Towbes (2019).", getWidth() - 335, getHeight()-15, 325, 15, Justification::right, 2);
 }
 
 void MainContentComponent::resized()
@@ -524,7 +591,7 @@ void MainContentComponent::resized()
     
     // parameters box
     int thirdWidthIoComponent = (int)((getWidth() - 20)/ 3) - 20; // lazy to change all to add that to audioIOComponent GUI for now
-    
+
     parameterLabel.setBounds(30, 147, 80, 15);
     
     directPathLabel.setBounds(30, 170, 120, 20);
@@ -540,7 +607,8 @@ void MainContentComponent::resized()
     clearSourceImageButton.setBounds(getWidth() - 80, 200, 50, 50);
     
     saveIrButton.setBounds(getWidth() - thirdWidthIoComponent - 30, 265, thirdWidthIoComponent, 30);
-    saveOscButton.setBounds(getWidth() - thirdWidthIoComponent - 15, getHeight() - 55, thirdWidthIoComponent, 30);
+    saveOscButton.setBounds(getWidth() - thirdWidthIoComponent - 15, getHeight() - 75, thirdWidthIoComponent, 30);
+
     
     crossfadeStepSlider.setBounds(0.16*getWidth(), 255, 90, 50);
     crossfadeLabel.setBounds(30, 258, crossfadeStepSlider.getX() - 30, 40);
@@ -553,14 +621,37 @@ void MainContentComponent::resized()
     
     // log box
 //    logTextBox.setBounds(<#int x#>, <#int y#>, <#int width#>, <#int height#>)
-    logLabel.setBounds(30, 309, 120, 20);
-    logTextBox.setBounds (8, 320, getWidth() - 16, getHeight() - 336);
-    enableLog.setBounds(getWidth() - 120, 320, 100, 30);
-    enableRecord.setBounds(getWidth() - 200, 350, 180, 30);
+    logLabel.setBounds(30, 489, 120, 20);
+    logTextBox.setBounds (8, 500, getWidth() - 16, getHeight() - 536);
+    enableLog.setBounds(getWidth() - 120, 510, 100, 30);
+    enableRecord.setBounds(getWidth() - 200, 540, 180, 30);
     
     // clipping led
     clippingLedLabel.setBounds(enableLog.getX() - 50, enableLog.getY()+7, 34, 14);
     clippingLed.setBounds(clippingLedLabel.getX() - 12, enableLog.getY()+4, 16, 16);
+
+    /*
+     Slider humiditySlider;
+     Slider pressureSlider;
+     Slider tempSlider;
+     Slider medSlider;
+     */
+
+
+    humiditySlider.setBounds(180, 260 + offset, getWidth() - 380, 20);
+    humiditySliderLabel.setBounds(30, 260 + offset, 120, 20);
+
+    pressureSlider.setBounds(180, 290 + offset, getWidth() - 380, 20);
+    pressureSliderLabel.setBounds(30, 290 + offset, 120, 20);
+
+    tempSlider.setBounds(180, 320 + offset, getWidth() - 380, 20);
+    tempSliderLabel.setBounds(30, 320 + offset, 120, 20);
+
+    medSlider.setBounds(180, 350 + offset, getWidth() - 380, 20);
+    medSliderLabel.setBounds(30, 350 + offset, 120, 20);
+
+
+    saveToHost.setBounds(getWidth() - thirdWidthIoComponent - 30, 370 + offset, thirdWidthIoComponent, 30);
 }
 
 //==============================================================================
@@ -585,7 +676,7 @@ void MainContentComponent::buttonClicked (Button* button)
         if ( sourceImagesHandler.numSourceImages > 0 )
         {
             isRecordingIr = true;
-            recordIr();
+            recordIr("~/Desktop");
         }
         else {
             AlertWindow::showMessageBoxAsync ( AlertWindow::NoIcon, "Impulse Response not saved", "No source images registered from raytracing client \n(Empty IR)", "OK");
@@ -621,6 +712,17 @@ void MainContentComponent::buttonClicked (Button* button)
         oscHandler.clear(false);
         updateOnOscReceive();
         logTextBox.setText(oscHandler.getMapContentForGUI());
+    }
+    if (button == &saveToHost){
+        if ( sourceImagesHandler.numSourceImages > 0 )
+        {
+            isRecordingIr = true;
+            recordIr(PresetPath);
+            // saveJsonPreset(PresetPath);
+        }
+        else {
+            AlertWindow::showMessageBoxAsync ( AlertWindow::NoIcon, "Error: Preset not saved", "No source images registered from raytracing client \n(Empty IR)", "OK");
+        }
     }
 
 }
@@ -668,6 +770,43 @@ void MainContentComponent::sliderValueChanged(Slider* slider)
     {
         sourceImagesHandler.crossfadeStep = slider->getValue();
         sourceImagesHandler.binauralEncoder.crossfadeStep = slider->getValue();
+    }
+    // new sliders
+    if( slider == &pressureSlider )
+    {
+        AirAbsorber.setPressure(slider->getValue());
+        update_air_coeffs(numFreqBands);
+    }
+    if( slider == &humiditySlider )
+    {
+        AirAbsorber.setHumidity(slider->getValue() / 100.0f);
+        update_air_coeffs(numFreqBands);
+    }
+    if( slider == &tempSlider )
+    {
+        AirAbsorber.setTemperature(slider->getValue());
+        update_air_coeffs(numFreqBands);
+    }
+    if( slider == &medSlider )
+    {
+        AirAbsorber.setMedium((int) slider->getValue());
+        update_air_coeffs(numFreqBands);
+    }
+
+}
+
+void MainContentComponent::update_air_coeffs(int numbands)
+{
+    // this might be poor thread safety, oh well. Sorry Akito.
+    if (numbands == 3){
+        for (int i = 0; i < numbands; i++){
+            sourceImagesHandler.a_3[i] = AirAbsorber.getCoeffForBand(i, numFreqBands);
+        }
+    }
+    else if (numbands == 10){
+        for (int i = 0; i < numbands; i++){
+            sourceImagesHandler.a_10[i] = AirAbsorber.getCoeffForBand(i, numFreqBands);
+        }
     }
 }
 

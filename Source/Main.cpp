@@ -10,6 +10,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainComponent.h"
+//#include <fenv.h>
 Component* createMainContentComponent();
 
 //==============================================================================
@@ -99,7 +100,9 @@ public:
 private:
     ScopedPointer<MainWindow> mainWindow;
 };
+//feenableexcept(FE_INVALID | FE_OVERFLOW);
 
 //==============================================================================
 // This macro generates the main() routine that launches the app.
 START_JUCE_APPLICATION (EvertSEApplication)
+

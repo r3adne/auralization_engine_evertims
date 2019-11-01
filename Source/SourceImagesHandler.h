@@ -7,7 +7,9 @@
 #include "FilterBank.h"
 #include "ReverbTail.h"
 #include "DirectivityHandler.h"
-#include "AirAbsorption.h"
+//#include "AirAbsorption.h"
+
+#define EPSILON 0.000000000000000000000001
 
 class SourceImagesHandler
 {
@@ -16,7 +18,9 @@ class SourceImagesHandler
 // ATTRIBUTES
     
 public:
-    
+
+    bool realMode = true;
+
     // sources images
     int numSourceImages = 0;
     float earlyGain = 1.f;
@@ -33,7 +37,11 @@ public:
     int directPathId = -1;
     float directPathGain = 1.0f;
     bool enableDirectToBinaural = true;
-    
+
+    // air absorption coefficients
+    float a_10[10] = {}; // in amplitude gain/meter or dB/meter?
+    float a_3[3] = {};
+
     // crossfade mechanism
     float crossfadeStep = 0.1f;
     bool crossfadeOver = true;
@@ -53,6 +61,8 @@ public:
         std::vector< Array<float> > absorptionCoefs; // room frequency absorption coefficients
         std::vector< Array<float> > directivityGains; // source directivity gains
         std::vector< Array<float> > ambisonicGains; // buffer for input data
+        std::vector<float> a_3_local = {0.0f, 0.0f, 0.0f};
+        std::vector<float> a_10_local = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     };
     
     localVariablesStruct *current = new localVariablesStruct();
@@ -71,6 +81,7 @@ private:
     // misc.
     double localSampleRate;
     int localSamplesPerBlockExpected;
+
     
     // crossfade mechanism
     float crossfadeGain = 0.0;
@@ -131,6 +142,10 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
     
     // clear output buffer (since used as cumulative buffer, iteratively summing sources images buffers)
     ambisonicBuffer.clear();
+
+    // update local a values from AirAbsorption
+    std::copy(a_10, a_10+10, current->a_10_local.begin());
+    std::copy(a_3, a_3+3, current->a_3_local.begin());
     
     // loop over sources images
     for( int j = 0; j < numSourceImages; j++ )
@@ -174,6 +189,7 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
         
         //========================================================================== AIR ABSORPTION -- possibly implement this within frequency dependent gain section? Possibly implement varying medium? see: Propogation of Sound in the Ocean. -ZT
         // APPLY GAIN BASED ON SOURCE IMAGE PATH LENGTH
+
         float gainDelayLine = 0.0f;
         if( !crossfadeOver )
         {
@@ -187,8 +203,10 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
                 gainDelayLine = 1.0/current->pathLengths[j];
             }
         }
+//        workingBuffer.applyGain(gainDelayLine); //
         workingBuffer.applyGain( fmin( 1.0, fmax( 0.0, gainDelayLine )) ); // bypass minmax ////////////////////////////// POSSIBLE INSTABILITY
-        
+
+
         //==========================================================================
         // APPLY FREQUENCY SPECIFIC GAINS (ABSORPTION, DIRECTIVITY)
         
@@ -197,11 +215,15 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
         
         // apply absorption gains and recompose
         workingBuffer.clear();
-        float absorptionCoef, dirGain;
-        for( int k = 0; k < bandBuffer.getNumChannels(); k++) //////////////// BANDS ////////////////
+        float absorptionCoef, dirGain, airCoef;
+        int numChannels = bandBuffer.getNumChannels();
+        for( int k = 0; k < bandBuffer.getNumChannels(); k++)
+        //////////////// BANDS ////////////////
         {
             absorptionCoef = 0.f;
             dirGain = 0.f;
+            airCoef = 0.f;
+
             
             // apply crossfade
             if( !crossfadeOver )
@@ -210,11 +232,28 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
                 {
                     absorptionCoef += (1.0 - crossfadeGain) * current->absorptionCoefs[j][k];
                     dirGain += (1.0 - crossfadeGain) * current->directivityGains[j][k];
+
+                    if (numChannels == 3){
+                        airCoef += (1.0 - crossfadeGain) * current->a_3_local[k];
+                    }
+                    else if (numChannels == 10){
+                        airCoef += (1.0 - crossfadeGain) * current->a_10_local[k];
+                    }
+
                 }
+
                 if( j < future->absorptionCoefs.size() )
                 {
                     absorptionCoef += crossfadeGain * future->absorptionCoefs[j][k];
                     dirGain += crossfadeGain * future->directivityGains[j][k];
+
+                    if (numChannels == 3){
+                        airCoef += crossfadeGain * future->a_3_local[k];
+                    }
+                    else if (numChannels == 10){
+                        airCoef += crossfadeGain * future->a_10_local[k];
+                    }
+
                 }
             }
             else
@@ -223,18 +262,37 @@ void getNextAudioBlock( DelayLine* delayLine, AudioBuffer<float> & ambisonicBuff
                 {
                     absorptionCoef = current->absorptionCoefs[j][k];
                     dirGain = current->directivityGains[j][k]; // only using real part here
+
+                    // just like before, adding air absorption gains based on their number of bands.
+                    if (bandBuffer.getNumChannels() == 3){
+                        airCoef = juce::Decibels::decibelsToGain(current->pathLengths[j] * -1.0f * a_3[k]);
+                    }
+                    else if (bandBuffer.getNumChannels() == 10){
+                        airCoef = juce::Decibels::decibelsToGain(current->pathLengths[j] * -1.0f * a_10[k]);
+                    }
                 }
             }
             
             // bound gains ------------------ Add instability //////////////////////////////////////////////////////////////////////////
             absorptionCoef = fmin( 1.0, fmax( 0.0,  1.f - absorptionCoef ));
             dirGain = fmin( 1.0, fmax( 0.0, dirGain ));
-            
+            airCoef = fmin(1.0, fmax(0.0, airCoef));
+
+
             // apply absorption gains (TODO: sometimes crashes here at startup because absorptionCoefs data is null pointer)
             bandBuffer.applyGain(k, 0, localSamplesPerBlockExpected, absorptionCoef);
             
             // apply directivity gain (TODO: merge with absorption gain above)
             bandBuffer.applyGain(k, 0, localSamplesPerBlockExpected, dirGain);
+
+            // apply air absorption gains
+            if (realMode){
+                bandBuffer.applyGain(k, 0, localSamplesPerBlockExpected, airCoef); // added air coef gain
+            }
+            else{
+                bandBuffer.applyGain(k, 0, localSamplesPerBlockExpected, 2.0f * airCoef); // added air coef gain
+            }
+
             
             // recompose (add-up frequency bands)
             workingBuffer.addFrom(0, 0, bandBuffer, k, 0, localSamplesPerBlockExpected);
@@ -416,37 +474,36 @@ void updateFromOscHandler( OSCHandler & oscHandler )
     
 }
     
-void setFilterBankSize( const unsigned int numFreqBands )
-{
-    filterBank.setNumFilters( numFreqBands, current->ids.size() );
-    bandBuffer.setSize( numFreqBands, localSamplesPerBlockExpected );
-}
+    void setFilterBankSize( const unsigned int numFreqBands )
+    {
+        filterBank.setNumFilters( numFreqBands, current->ids.size() );
+        bandBuffer.setSize( numFreqBands, localSamplesPerBlockExpected );
+    }
     
 private:
-    
-// update crossfade mechanism (to avoid zipper noise with smooth gains transitions)
-void updateCrossfade()
-{
-    // either update crossfade
-    if( crossfadeGain < 1.0 )
+
+    // update crossfade mechanism (to avoid zipper noise with smooth gains transitions)
+    void updateCrossfade()
     {
-        crossfadeGain = fmin( crossfadeGain + crossfadeStep, 1.0 );
+        // either update crossfade
+        if( crossfadeGain < 1.0 )
+        {
+            crossfadeGain = fmin( crossfadeGain + crossfadeStep, 1.0 );
+        }
+        // or stop crossfade mechanism if not already stopped
+        else if (!crossfadeOver)
+        {
+            // set past = future
+            // (objective: atomic swap to make sure no value is updated in middle of audio processing loop)
+            std::swap(current, future);
+
+            // reset crossfade internals
+            crossfadeGain = 1.0; // just to make sure for the last loop using crossfade gain
+            crossfadeOver = true;
+        }
     }
-    // or stop crossfade mechanism if not already stopped
-    else if (!crossfadeOver)
-    {
-        // set past = future
-        // (objective: atomic swap to make sure no value is updated in middle of audio processing loop)
-        std::swap(current, future);
-        
-        // reset crossfade internals
-        crossfadeGain = 1.0; // just to make sure for the last loop using crossfade gain
-        crossfadeOver = true;
-    }
-}
-    
-JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SourceImagesHandler)
-    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SourceImagesHandler);
 };
+
 
 #endif // SOURCEIMAGESHANDLER_H_INCLUDED

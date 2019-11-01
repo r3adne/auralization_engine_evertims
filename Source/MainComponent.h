@@ -11,6 +11,7 @@
 #include "DelayLine.h"
 #include "SourceImagesHandler.h"
 #include "LedComponent.h"
+#include "AirAbsorption.h"
 
 #include <vector>
 #include <array>
@@ -44,7 +45,7 @@ public:
     void processAmbisonicBuffer( AudioBuffer<float> *const audioBufferToFill );
     void fillNextAudioBlock( AudioBuffer<float> *const audioBufferToFill );
     void recordAmbisonicBuffer();
-    void recordIr();
+    void recordIr(string path);
     
     void paint (Graphics& g) override;
     void resized() override;
@@ -52,12 +53,18 @@ public:
     void buttonClicked (Button* button) override;
     void comboBoxChanged(ComboBox* comboBox) override;
     void sliderValueChanged(Slider* slider) override;
+
+    void update_air_coeffs(int numbands);
+
+
     
 private:
     
     void changeListenerCallback (ChangeBroadcaster* source) override;
     void updateOnOscReceive();
     float clipOutput(float input);
+
+    string PresetPath = "~/EvertimsPresets/";
     
     //==========================================================================
     // MISC.
@@ -96,8 +103,19 @@ private:
 
     //==========================================================================
     // New GUI ELEMENTS -- will be merged above when these all work.
+//    LedComponent overLed;
+//    Label overLedLabel;
 
-
+    Slider humiditySlider;
+    Slider pressureSlider;
+    Slider tempSlider;
+    Slider medSlider;
+    Label humiditySliderLabel;
+    Label pressureSliderLabel;
+    Label tempSliderLabel;
+    Label medSliderLabel;
+    TextButton saveToHost;
+    
 
     std::unordered_map<Button*, std::string> buttonMap;
     std::unordered_map<ComboBox*, Array< std::string > > comboBoxMap;
@@ -126,7 +144,11 @@ private:
     // sources images
     SourceImagesHandler sourceImagesHandler;
     bool sourceImageHandlerNeedsUpdate = false;
-    
+
+    // air absorption
+//    new AirAbsorption AirAbsorbe;
+    AirAbsorption AirAbsorber;
+
     // Ambisonic to binaural decoding
     AudioBuffer<float> ambisonicBuffer;
     AudioBuffer<float> ambisonicRecordBuffer;
