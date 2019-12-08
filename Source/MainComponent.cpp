@@ -1,6 +1,7 @@
 
 #include "MainComponent.h"
 #include "Utils.h"
+#include <boost/filesystem.hpp>
 
 #define offset 75
 
@@ -25,6 +26,9 @@ ambi2binContainer()
     
     // add audioIOComponent as addAudioCallback for adc input
     deviceManager.addAudioCallback(&audioIOComponent);
+
+    // set presetPath
+    presetPath = boost::filesystem::path("~/Documents/auralizer/presets/");
     
     //==========================================================================
     // INIT GUI ELEMENTS
@@ -85,7 +89,7 @@ ambi2binContainer()
     clearSourceImageButton.setColour (TextButton::buttonColourId, Colours::indianred);
     saveToHost.setColour(TextButton::buttonColourId, Colours::transparentBlack);
 
-    
+
     // init combo boxes
     comboBoxMap.insert({
         { &numFrequencyBandsComboBox, {"3", "10"} },
@@ -435,8 +439,16 @@ void MainContentComponent::recordAmbisonicBuffer()
 }
 
 // record current Room impulse Response to disk
-void MainContentComponent::recordIr(string path)
+void MainContentComponent::recordIr(boost::filesystem::path path, juce::String name) // NOTE: RECORD_IR
 {
+    /*
+    string path:
+        the path to record the IR to
+     string name:
+        the name
+
+     */
+
     // estimate output buffer size (based on max delay time)
     auto maxDelaySourceImages = getMaxValue( oscHandler.getSourceImageDelays() );
     auto rt60 = oscHandler.getRT60Values();
@@ -467,7 +479,7 @@ void MainContentComponent::recordIr(string path)
     // pass impulse input into processing loop until IR faded below threshold
     float rms = 1.0f;
     int bufferId = 0;
-    float irRmsThreshold = 0.00001f;
+    float irRmsThreshold = 0.0f;
     // record until rms below threshold or reached max delay. minDelay used here to make sure recording doesn't stop on first buffers for large
     // source-listener distances, where RMS is zero for the first few buffers until LOS image source reaches listener.
     while( ( rms >= irRmsThreshold || bufferId*localSamplesPerBlockExpected < minDelayInSamp ) && bufferId*localSamplesPerBlockExpected < maxDelayInSamp )
@@ -504,11 +516,19 @@ void MainContentComponent::recordIr(string path)
     recordingBufferAmbisonicOutput.setSize(N_AMBI_CH, bufferId*localSamplesPerBlockExpected, true);
     
     // save output
-    audioIOComponent.saveIR(recordingBufferAmbisonicOutput, localSampleRate, String("Evertims_IR_Recording_ambi_") + String(AMBI_ORDER) + String("_order"));
-    audioIOComponent.saveIR(recordingBufferOutput, localSampleRate, "Evertims_IR_Recording_binaural");
-    
-    // unlock main audio thread
-    isRecordingIr = false;
+
+    if (name == "")
+    {
+        audioIOComponent.saveIR(recordingBufferAmbisonicOutput, localSampleRate, nullptr, String("Evertims_IR_Recording_ambi_") + String(AMBI_ORDER) + String("_order"));
+        audioIOComponent.saveIR(recordingBufferOutput, localSampleRate, nullptr, "Evertims_IR_Recording_binaural");
+    }
+    else
+    {
+
+        audioIOComponent.saveIR(recordingBufferAmbisonicOutput, localSampleRate, &path, name);
+    }
+
+
 }
 
 void MainContentComponent::releaseResources()
@@ -676,7 +696,10 @@ void MainContentComponent::buttonClicked (Button* button)
         if ( sourceImagesHandler.numSourceImages > 0 )
         {
             isRecordingIr = true;
-            recordIr("~/Desktop");
+            recordIr("~/Desktop", ""); // this leaves name empty because if name == "", recordIR() will give it the default name.
+
+            // unlock main audio thread
+            isRecordingIr = false;
         }
         else {
             AlertWindow::showMessageBoxAsync ( AlertWindow::NoIcon, "Impulse Response not saved", "No source images registered from raytracing client \n(Empty IR)", "OK");
@@ -717,8 +740,9 @@ void MainContentComponent::buttonClicked (Button* button)
         if ( sourceImagesHandler.numSourceImages > 0 )
         {
             isRecordingIr = true;
-            recordIr(PresetPath);
-            // saveJsonPreset(PresetPath);
+            saveAuralizerPreset(presetPath.string());
+            // unlock main audio thread
+            isRecordingIr = false;
         }
         else {
             AlertWindow::showMessageBoxAsync ( AlertWindow::NoIcon, "Error: Preset not saved", "No source images registered from raytracing client \n(Empty IR)", "OK");
@@ -808,6 +832,104 @@ void MainContentComponent::update_air_coeffs(int numbands)
             sourceImagesHandler.a_10[i] = AirAbsorber.getCoeffForBand(i, numFreqBands);
         }
     }
+}
+
+void MainContentComponent::saveAuralizerPreset(boost::filesystem::path presetPath){
+    //=============================================================================//
+    // SAVE THE XML PRESET ========================================================//
+    //=============================================================================//
+
+    std::unique_ptr<XmlElement> xml (new XmlElement(presetSaveName));
+
+    boost::filesystem::path originalPresetPath(presetPath.string());
+
+    xml->setAttribute("name", presetSaveName.toUTF8());
+    xml->setAttribute("IRDir", presetPath.string());
+
+    xml->setAttribute("wetAmt", 1.0f); // 1.0f is the default for wet
+    xml->setAttribute("dryAmt", 0.0f); // 0.0f is the default for dry
+    xml->setAttribute("inAmt", 1.0f); // ...
+    xml->setAttribute("outAmt", 1.0f);
+    xml->setAttribute("yawAmt", 0.0f);
+    xml->setAttribute("pitchAmt", 0.0f);
+    xml->setAttribute("distAmt", 1.0f);
+    xml->setAttribute("dirAmt", (double) sourceImagesHandler.directPathGain);
+    xml->setAttribute("earlyAmt", (double) sourceImagesHandler.earlyGain);
+    xml->setAttribute("lateAmt", (double) sourceImagesHandler.reverbTailGain);
+
+//    presetPath is the path to save presets to. It is normally "~/Documents/auralizer/presets/
+    boost::filesystem::path thisPresetPath = boost::filesystem::path(presetPath.string());
+
+
+
+    thisPresetPath /= presetSaveName.toUTF8();
+    thisPresetPath /= "/";
+
+    File createDirFile(thisPresetPath.string());
+    createDirFile.createDirectory();
+
+//    juce::String IRPathString = createDirFile.getFullPathName();
+    boost::filesystem::path IRPath(createDirFile.getFullPathName().toUTF8());
+
+    thisPresetPath /= presetSaveName.toUTF8(); // appends the savename to the preset path
+    thisPresetPath.replace_extension(".xml"); // appends ".xml" to the preset's name
+
+    File xmlFile(thisPresetPath.string());
+
+    FileOutputStream xmlFileOutputStream(xmlFile);
+
+    xml->writeTo(xmlFileOutputStream);
+    
+
+//    juce::File presetFile = juce::File()
+
+
+    //=============================================================================//
+    // SAVE THE IMPULSE RESPONSES OF THE PRESET ===================================//
+    //=============================================================================//
+
+    // save the current slider positions so that they can be reset correctly and so that they can be saved in the preset.
+    double sliders[3];
+    sliders[0] = gainDirectPathSlider.getValue();
+    sliders[1] = gainEarlySlider.getValue();
+    sliders[2] = gainReverbTailSlider.getValue();
+
+    bool lateEnabled = sourceImagesHandler.enableReverbTail;
+
+    sourceImagesHandler.enableReverbTail = true;
+    // this will help us with the loop...
+    float values[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // one extra because this loop is ugly.
+    string names[3] = {"direct", "early", "late"};
+
+    // records each IR with the right name, path, and sourceImagesHandler gain values.
+    for (int i = 0; i < 3;){
+        values[i] = 1.0f;
+
+        sourceImagesHandler.directPathGain = values[0];
+        sourceImagesHandler.earlyGain = values[1];
+        sourceImagesHandler.reverbTailGain = values[2];
+
+        // this should pass in
+        recordIr(IRPath, names[i]);
+
+
+        i++;
+        values[i-1] = 0.0f;
+    }
+
+    // reset the gain values in the sourceImagesHandler
+    sourceImagesHandler.directPathGain = sliders[0];
+    sourceImagesHandler.earlyGain = sliders[1];
+    sourceImagesHandler.reverbTailGain = sliders[2];
+    sourceImagesHandler.enableReverbTail = lateEnabled;
+
+    // ensure that the sliders are in the right places
+    gainDirectPathSlider.setValue(sliders[0]);
+    gainEarlySlider.setValue(sliders[1]);
+    gainReverbTailSlider.setValue(sliders[2]);
+
+
+    presetPath = originalPresetPath;
 }
 
 //==============================================================================

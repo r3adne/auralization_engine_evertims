@@ -13,6 +13,7 @@
 #include "LedComponent.h"
 #include "AirAbsorption.h"
 
+#include <boost/filesystem.hpp>
 #include <vector>
 #include <array>
 #include <unordered_map>
@@ -45,7 +46,8 @@ public:
     void processAmbisonicBuffer( AudioBuffer<float> *const audioBufferToFill );
     void fillNextAudioBlock( AudioBuffer<float> *const audioBufferToFill );
     void recordAmbisonicBuffer();
-    void recordIr(string path);
+    void recordIr(boost::filesystem::path path, juce::String name);
+    void saveAuralizerPreset(boost::filesystem::path presetPath);
     
     void paint (Graphics& g) override;
     void resized() override;
@@ -64,8 +66,9 @@ private:
     void updateOnOscReceive();
     float clipOutput(float input);
 
-    string PresetPath = "~/EvertimsPresets/";
-    
+    // creates EvertimsPath and sets it to the AuralizerPresets path.
+    boost::filesystem::path EvertimsPath = "~/Documents/Auralizer/AuralizerPresets/"; // note: not sure about this syntactially.
+
     //==========================================================================
     // MISC.
     double localSampleRate;
@@ -146,7 +149,6 @@ private:
     bool sourceImageHandlerNeedsUpdate = false;
 
     // air absorption
-//    new AirAbsorption AirAbsorbe;
     AirAbsorption AirAbsorber;
 
     // Ambisonic to binaural decoding
@@ -159,8 +161,12 @@ private:
     // frequency band
     int numFreqBands = 0;
     bool updateNumFreqBandrequired = false;
-   
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
+
+    // preset path
+    boost::filesystem::path presetPath;
+    juce::String presetSaveName = "default_presetSaveName";
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent);
 };
 
 

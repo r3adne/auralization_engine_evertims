@@ -25,6 +25,9 @@ inline float getPsat(int medium){
         // medium is air
         return 1.03; // kPa
     }
+    else if (medium == 1){
+        return 2.06;
+    }
     else{
         //        cout << "unknown medium -- AirAbsorption.h" << '\n'; // TODO: make this print to log
         return NULL;

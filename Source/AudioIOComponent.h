@@ -1,4 +1,5 @@
 #include "../JuceLibraryCode/JuceHeader.h"
+#include <boost/filesystem.hpp>
 
 class AudioIOComponent:
 public Component,
@@ -193,14 +194,38 @@ void getNextAudioBlock (const AudioSourceChannelInfo & bufferToFill)
     return;
 }
 
-//==========================================================================
+//===========================================================================================================================================================
 // AUDIO WRITE METHODS
+// NOTE: HERE
 
-void saveIR(const AudioBuffer<float> & source, double sampleRate, String fileName)
+void saveIR(const AudioBuffer<float> & source, double sampleRate, boost::filesystem::path* presetPath, String fileName)
+    /*
+     boost::filesystem::path* presetPath:
+        The path to the directory that holds the given preset. For the moment, this is "~/Documents/auralizer/presets/<name of preset>/"
+
+     juce::String fileName:
+        The String containing the name of the eventual file to write. If the eventual file should be "~/Documents/auralizer/presets/<presetName>/<fileName>.wav" (or, "<filePath>/<presetName>/<fileName>.wav"
+        note that changing the slider values during export will be done in main, not here, so main will have to manage the process of switching filenames and slider values.
+     */
 {
-    const File file (File::getSpecialLocation (File::userDesktopDirectory)
-                     .getNonexistentChildFile (fileName, ".wav"));
-    
+    File file;
+
+    if (presetPath == NULL){
+    // if the file path is empty, we'll save to the desktop location.
+    // Ideally, these are stored in ~/Documents/auralizer/presets/, although eventually users should be able to specify other paths.
+
+        file = File(File::getSpecialLocation (File::userDesktopDirectory)
+                            .getNonexistentChildFile (fileName, ".wav"));
+
+    }
+    else{
+    // if the file path is specified, we'll save to the specified path.
+
+        file = File(presetPath->string())       // appends the fileName to the filePath:      "<filePath>/<fileName>"
+                    .getNonexistentChildFile (fileName, ".wav");
+    }
+
+
     // Create an OutputStream to write to our destination file...
     file.deleteFile();
     ScopedPointer<FileOutputStream> fileStream (file.createOutputStream());
@@ -220,6 +245,8 @@ void saveIR(const AudioBuffer<float> & source, double sampleRate, String fileNam
             
         }
     }
+
+    // TODO: deallocate
 }
 
 private:

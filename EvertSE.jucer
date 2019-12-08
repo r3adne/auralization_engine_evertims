@@ -87,7 +87,7 @@
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" bigIcon="c3T5di" smallIcon="S30np0"
-               externalLibraries="resample&#10;z" postbuildCommand="" extraLinkerFlags="/usr/local/lib/libmysofa.a"
+               externalLibraries="resample&#10;z&#10;" postbuildCommand="" extraLinkerFlags="/usr/local/lib/libmysofa.a&#10;-lboost_filesystem"
                userNotes="regarding &quot;external libraries to link&quot;: forced linking againsted libmysofa.a (hence removed mysofa from lib and specified full path in extra linker flags). had, because of that, to add zlib (-lz -&gt; z in ext. lib to link) to avoid &quot;inflate symbol undefined&quot; error."
                keepCustomXcodeSchemes="0">
       <CONFIGURATIONS>
