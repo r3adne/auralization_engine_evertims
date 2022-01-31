@@ -1,10 +1,10 @@
 # EvertSE: Auralization Engine of the EVERTims project
 
-#### zac-towbes fork of EVERTims/auralization-engine-evertims
+#### r3adne fork of EVERTims/auralization-engine-evertims
 
 Pre-compiled application may already exist for your architecture, check the install section of the [EVERTims website](https://evertims.github.io/website).  The installation described here targets developers involved in the project.
 
-## zac-towbes/auralization-engine-evertims
+## r3adne/auralization-engine-evertims
 is a forked version of EVERTims/auralization-engine-evertims. I am adding some extra functionality:
 
 1. frequency-dependant gain in air absorption calculation
